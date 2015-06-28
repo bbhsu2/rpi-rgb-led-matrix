@@ -1,4 +1,4 @@
-// -*- mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; -*-
+``// -*- mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; -*-
 //
 // This code is public domain
 // (but note, that the led-matrix library this depends on is GPL v2)
@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <algorithm>
+
+
 
 using std::min;
 using std::max;
@@ -995,6 +997,267 @@ private:
   int target_;
   citizen* children_;
   citizen* parents_;
+};
+
+/// Boids
+/// Bird Flocking
+/// by bbhsu2
+class Boids : public ThreadedCanvasManipulator {
+public:
+  Boids(Canvas *m, int delay_ms = 100)
+    : ThreadedCanvasManipulator(m), delay_ms_(delay_ms) {
+    width_ = canvas()->width();
+    height_ = canvas()->height();
+    BOIDS_COUNT = (int)(width_ * height_ * 0.3f);
+
+    // Allocate memory
+    boids_ = new Boid[BOIDS_COUNT];
+    //seed random and set color
+    srand(time(NULL));
+    color_ = rand() & 0xFFFFFF;
+  }
+
+  void Run() {
+    for(int i=0; i<BOIDS_COUNT; ++i){
+      boids_[i].
+    }
+
+    while(running()) {
+      //iterate through the boids and update acceleration
+      for(int i=0; i<BOIDS_COUNT; ++i){
+        Boid* b = &boids_[i];
+        Vector2 v1 = m1 * Rule1(b);
+        Vector2 v2 = m2 * Rule2(b) * DESIRED_SEPARATION;
+        Vector2 v3 = m3 * Rule3(b);
+        b->acceleration_ = v1 + v2 + v3;
+        b->Update();
+      }
+      //iterate through the boids again and draw them
+      for(int i=0; i<BOIDS_COUNT; ++i){
+        int x = boids_[i].position_.X();
+        int y = boids_[i].position_.Y();
+        canvas()->SetPixel(x, y, R(color_), G(color_), B(color_));
+      }
+      usleep(delay_ms_ * 1000);
+    }
+  }
+
+private:
+  /// The Boid that flies around the screen.
+  struct Boid {
+    //TODO: make sure to change these values
+    const static float BORDER_OFFSET = 30.0f;
+		const static float MAX_SPEED = 4.0f;
+
+    Boid() {
+    }
+
+    Boid(Vector2 pos, Vector2 vel, Vector2 accel = Vector2::Zero())
+      : position_(pos), velocity_(vel), acceleration_(accel) {
+    }
+
+    void Update(){
+      velocity_ += acceleration_;
+      velocity_.Normalize();
+      velocity_ *= MAX_SPEED;
+      position_ += velocity_;
+      checkBounds();
+      acceleration_ = Vector2::Zero();
+    }
+
+    Vector2 Position() { return position_; }
+    Vector2 Velocity() { return velocity_; }
+    Vector2 Acceleration() { return acceleration_; }
+
+    void checkBounds() {
+      if (position_.X() > width_ + BORDER_OFFSET) {
+        position_.X() = -BORDER_OFFSET;
+      }
+
+      if (position_ < -BORDER_OFFSET) {
+        position_.X() = width_ + BORDER_OFFSET;
+      }
+
+      if (position_.Y() > height_ + BORDER_OFFSET) {
+        position_.Y() = -BORDER_OFFSET;
+      }
+
+      if (position_.Y() < -BORDER_OFFSET) {
+        position_.Y() = height_ + BORDER_OFFSET;
+      }
+    }
+
+    Vector2 position_;
+    Vector2 velocity_;
+    Vector2 acceleration_;
+  };
+
+  /// A class to store the Velocity and Accel of each Boid
+  /// TODO: Overload operators
+  /// TODO: Add more functions for generalization
+  class Vector2 {
+  public:
+    Vector2()
+      : x_(0.0f), y_(0.0f) {
+    }
+
+    Vector2(float x, float y)
+      : x_(x), y_(y) {
+    }
+
+    Vector2(float unitVal)
+      : x_(unitVal), y_(unitVal) {
+    }
+
+    Vector2(const Vector2& copy){
+      set(copy);
+    }
+
+    static const Vector2& Zero() {
+      static Vector2 zero();
+      return zero;
+    }
+
+    static const Vector2& Unit(){
+      static Vector2 ones(1.0f, 1.0f);
+      return ones;
+    }
+
+    static const Vector2& UnitX(){
+      static Vector2 u(1.0f, 0.0f);
+      return u;
+    }
+
+    static const Vector2& UnitY(){
+      static Vector2 u(0.0f, 1.0f);
+      return u;
+    }
+
+    float X() { return x_; }
+    float Y() { return y_; }
+    float Length() { return sqrt(x_ * x_ + y_ * y_); }
+
+    void Normalize() {
+      float n = Length();
+      // Already normalized.
+      if (n == 1.0f)
+          return;
+
+      n = sqrt(n);
+      // Too close to zero.
+      if (n < 0.0000001f)
+          return;
+
+      n = 1.0f / n;
+      x_ *= n;
+      y_ *= n;
+    }
+
+    void Scale(float scale){
+      x_ *= scale;
+      y_ *= scale;
+    }
+
+    float Dot(const Vector2& v1, const Vector2& v2) {
+      return v1.X() * v2.X()) + (v1.Y() + v2.Y();
+    }
+
+    bool IsZero() const {
+      return x == 0.0f && y == 0.0f;
+    }
+
+    bool IsOne() const {
+      return x == 1.0f && y == 1.0f;
+    }
+
+    static float Angle(const Vector2& v1, const Vector2& v2) {
+      float dz = v1.x * v2.y - v1.y * v2.x;
+      return atan2f(fabsf(dz) + 1.0e-37f, dot(v1, v2)); //float small
+    }
+
+    Vector2 getNormalized() {
+      Vector2 v(*this);
+      v.Normalize();
+      return v;
+    }
+
+  private:
+    float x_, y_;
+
+    void set(float x, float y) {
+      x_ = x;
+      y_ = y;
+    }
+
+    void set(const Vector2& v) {
+      x_ = v.x_;
+      y_ = v.y_;
+    }
+
+    void set(const Vector2& p1, const Vector2& p2) {
+      x_ = p2.x_ - p1.x_;
+      y_ = p2.y_ - p1.y_;
+    }
+  };
+
+  /// Fly to the center of mass of other boids
+  Vector2 Rule1(Boid& boid) {
+    Vector2 pcj = Vector2::Zero();
+    int neighborCount = 0;
+		for(int i=0; i<BOIDS_COUNT; ++i){
+			if (boid != b && (b.position_-boid.position_).Length() < 700) {
+				pcj += b.position_;
+				++neighborCount;
+			}
+		}
+		pcj /= neighborCount + 1; //(Boids.Count - 1);
+		return (pcj - boid.position_) * 0.01f;
+  }
+
+  //Keep a small distance away from other objects
+  Vector2 Rule2(Boid& boid) {
+    Vector2 pvj = Vector2::Zero();
+    int neighborCount = 0;
+		for(int i=0; i<BOIDS_COUNT; ++i){
+			if (b != boid) {
+				var distance = (boid.position_ - b.position_).Length();
+				if (0 < distance && distance < DESIRED_SEPARATION) {
+					var deltaVector = boid.position_ - b.position_;
+					deltaVector.Normalize();
+					deltaVector /= distance;
+					vec += deltaVector;
+					neighborCount++;
+				}
+			}
+		}
+		Vector2 averageSteeringVector = (neighborCount > 0) ? vec / neighborCount : Vector2.Zero;
+		return averageSteeringVector;
+  }
+
+  //Maintain an average speed equal to that of the other boids
+  Vector2 Rule3(Boid& boid) {
+    Vector2 pvj = Vector2::Zero();
+    for(int i=0; i<BOIDS_COUNT; ++i){
+      if (boid != b) {
+				pvj += b.Velocity();
+			}
+		}
+		pvj /= (BOUDS_COUNT - 1);
+		return (pvj - boid.Velocity()) / 8;
+  }
+
+  static int R(const int cit) { return at(cit, 16); }
+  static int G(const int cit) { return at(cit, 8); }
+  static int B(const int cit) { return at(cit, 0); }
+  static int at(const int v, const  int offset) { return (v >> offset) & 0xFF; }
+
+  int BOIDS_COUNT;
+  int color_;
+  int popSize_;
+  int width_, height_;
+  int delay_ms_;
+  int m1_, m2_, m3_; //scaling factors for vectors
+  Boid* boids_;
 };
 
 static int usage(const char *progname) {
