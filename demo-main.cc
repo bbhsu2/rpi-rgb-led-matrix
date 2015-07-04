@@ -1,4 +1,4 @@
-``// -*- mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; -*-
+// -*- mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; -*-
 //
 // This code is public domain
 // (but note, that the led-matrix library this depends on is GPL v2)
@@ -14,8 +14,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <algorithm>
-
-
 
 using std::min;
 using std::max;
@@ -215,7 +213,7 @@ public:
   ImageScroller(Canvas *m, int scroll_jumps, int scroll_ms = 30)
     : ThreadedCanvasManipulator(m), scroll_jumps_(scroll_jumps),
       scroll_ms_(scroll_ms),
-      horizontal_position_(0) {
+      horizontal_position(0) {
   }
 
   virtual ~ImageScroller() {
@@ -255,7 +253,7 @@ public:
     fclose(f);
     fprintf(stderr, "Read image '%s' with %dx%d\n", filename,
             new_width, new_height);
-    horizontal_position_ = 0;
+    horizontal_position = 0;
     MutexLock l(&mutex_new_image_);
     new_image_.Delete();  // in case we reload faster than is picked up
     new_image_.image = new_image;
@@ -283,12 +281,12 @@ public:
       for (int x = 0; x < screen_width; ++x) {
         for (int y = 0; y < screen_height; ++y) {
           const Pixel &p = current_image_.getPixel(
-                     (horizontal_position_ + x) % current_image_.width, y);
+                     (horizontal_position + x) % current_image_.width, y);
           canvas()->SetPixel(x, y, p.red, p.green, p.blue);
         }
       }
-      horizontal_position_ += scroll_jumps_;
-      if (horizontal_position_ < 0) horizontal_position_ = current_image_.width;
+      horizontal_position += scroll_jumps_;
+      if (horizontal_position < 0) horizontal_position = current_image_.width;
       if (scroll_ms_ <= 0) {
         // No scrolling. We don't need the image anymore.
         current_image_.Delete();
@@ -342,7 +340,7 @@ private:
   Mutex mutex_new_image_;
   Image new_image_;
 
-  int32_t horizontal_position_;
+  int32_t horizontal_position;
 };
 
 
@@ -1017,25 +1015,34 @@ public:
     color_ = rand() & 0xFFFFFF;
   }
 
+  ~Boids() {
+    delete [] boids_;
+  }
+
   void Run() {
-    for(int i=0; i<BOIDS_COUNT; ++i){
-      boids_[i].
+    //initialize each boid in boids_
+    for(int i=0; i<BOIDS_COUNT; ++i) {
+      float angle = (float)rand () / (float)(RAND_MAX);
+      boids_[i].position.x_ = rand() % (width_ / 2);
+      boids_[i].position.y_ = rand() % (height_ / 2);
+      boids_[i].velocity.x_ = cos(angle);
+      boids_[i].velocity.y_ = sin(angle);
     }
 
-    while(running()) {
+    while (running()) {
       //iterate through the boids and update acceleration
       for(int i=0; i<BOIDS_COUNT; ++i){
         Boid* b = &boids_[i];
         Vector2 v1 = m1 * Rule1(b);
         Vector2 v2 = m2 * Rule2(b) * DESIRED_SEPARATION;
         Vector2 v3 = m3 * Rule3(b);
-        b->acceleration_ = v1 + v2 + v3;
+        b->acceleration = v1 + v2 + v3;
         b->Update();
       }
       //iterate through the boids again and draw them
       for(int i=0; i<BOIDS_COUNT; ++i){
-        int x = boids_[i].position_.X();
-        int y = boids_[i].position_.Y();
+        int x = (int)boids_[i].position.X();
+        int y = (int)boids_[i].position.Y();
         canvas()->SetPixel(x, y, R(color_), G(color_), B(color_));
       }
       usleep(delay_ms_ * 1000);
@@ -1044,98 +1051,92 @@ public:
 
 private:
   /// The Boid that flies around the screen.
-  struct Boid {
-    //TODO: make sure to change these values
-    const static float BORDER_OFFSET = 30.0f;
-		const static float MAX_SPEED = 4.0f;
-
-    Boid() {
-    }
+  class Boid {
+  public:
+    Boid () { }
 
     Boid(Vector2 pos, Vector2 vel, Vector2 accel = Vector2::Zero())
-      : position_(pos), velocity_(vel), acceleration_(accel) {
+      : position(pos), velocity(vel), acceleration(accel) {
     }
 
     void Update(){
-      velocity_ += acceleration_;
-      velocity_.Normalize();
-      velocity_ *= MAX_SPEED;
-      position_ += velocity_;
-      checkBounds();
-      acceleration_ = Vector2::Zero();
+      velocity += acceleration;
+      velocity.Normalize();
+      velocity *= MAX_SPEED;
+      position += velocity;
+      CheckBounds();
+      acceleration = Vector2::Zero();
     }
 
-    Vector2 Position() { return position_; }
-    Vector2 Velocity() { return velocity_; }
-    Vector2 Acceleration() { return acceleration_; }
-
-    void checkBounds() {
-      if (position_.X() > width_ + BORDER_OFFSET) {
-        position_.X() = -BORDER_OFFSET;
+    void CheckBounds() {
+      if (position.X() > width_ + BORDER_OFFSET) {
+        position.X() = -BORDER_OFFSET;
       }
-
-      if (position_ < -BORDER_OFFSET) {
-        position_.X() = width_ + BORDER_OFFSET;
+      if (position < -BORDER_OFFSET) {
+        position.X() = width_ + BORDER_OFFSET;
       }
-
-      if (position_.Y() > height_ + BORDER_OFFSET) {
-        position_.Y() = -BORDER_OFFSET;
+      if (position.Y() > height_ + BORDER_OFFSET) {
+        position.Y() = -BORDER_OFFSET;
       }
-
-      if (position_.Y() < -BORDER_OFFSET) {
-        position_.Y() = height_ + BORDER_OFFSET;
+      if (position.Y() < -BORDER_OFFSET) {
+        position.Y() = height_ + BORDER_OFFSET;
       }
     }
 
-    Vector2 position_;
-    Vector2 velocity_;
-    Vector2 acceleration_;
+    const bool operator ==(const Boid& b) const {
+      if(this->position == b.position &&
+         this->velocity == b.velocity &&
+         this->acceleration == b.acceleration) {
+           return true;
+      }
+      return false;
+    }
+
+    const bool operator !=(const Boid& b) const {
+      return !(*this == b);
+    }
+
+    Vector2 position;
+    Vector2 velocity;
+    Vector2 acceleration;
   };
 
   /// A class to store the Velocity and Accel of each Boid
-  /// TODO: Overload operators
-  /// TODO: Add more functions for generalization
   class Vector2 {
   public:
-    Vector2()
-      : x_(0.0f), y_(0.0f) {
+    Vector2() : x_(0.0f), y_(0.0f) { }
+
+    Vector2(float unitVal) : x_(unitVal), y_(unitVal) { }
+
+    Vector2(float x, float y) : x_(x), y_(y) { }
+
+    Vector2(const Vector2& copy) {
+      Set(copy);
     }
 
-    Vector2(float x, float y)
-      : x_(x), y_(y) {
-    }
-
-    Vector2(float unitVal)
-      : x_(unitVal), y_(unitVal) {
-    }
-
-    Vector2(const Vector2& copy){
-      set(copy);
-    }
-
-    static const Vector2& Zero() {
-      static Vector2 zero();
+    static Vector2 Zero() {
+      static Vector2 zero;
       return zero;
     }
 
-    static const Vector2& Unit(){
-      static Vector2 ones(1.0f, 1.0f);
+    static Vector2 Unit() {
+      static Vector2 ones(1.0f);
       return ones;
     }
 
-    static const Vector2& UnitX(){
+    static Vector2 UnitX() {
       static Vector2 u(1.0f, 0.0f);
       return u;
     }
 
-    static const Vector2& UnitY(){
+    static Vector2 UnitY() {
       static Vector2 u(0.0f, 1.0f);
       return u;
     }
 
-    float X() { return x_; }
-    float Y() { return y_; }
-    float Length() { return sqrt(x_ * x_ + y_ * y_); }
+    float X() const { return x_; }
+    float Y() const { return y_; }
+    float Length() const { return sqrt(x_ * x_ + y_ * y_); }
 
     void Normalize() {
       float n = Length();
@@ -1145,7 +1146,7 @@ private:
 
       n = sqrt(n);
       // Too close to zero.
-      if (n < 0.0000001f)
+      if (n < std::numeric_limits<float>::min())
           return;
 
       n = 1.0f / n;
@@ -1153,103 +1154,222 @@ private:
       y_ *= n;
     }
 
-    void Scale(float scale){
+    void Scale(float scale) {
       x_ *= scale;
       y_ *= scale;
     }
 
-    float Dot(const Vector2& v1, const Vector2& v2) {
-      return v1.X() * v2.X()) + (v1.Y() + v2.Y();
-    }
-
     bool IsZero() const {
-      return x == 0.0f && y == 0.0f;
+      return x_ == 0.0f && y_ == 0.0f;
     }
 
     bool IsOne() const {
-      return x == 1.0f && y == 1.0f;
+      return x_ == 1.0f && y_ == 1.0f;
     }
 
+    bool IsUnit() const {
+      return sqrt(x_ * x_ + y_ * y_) == 1;
+    }
+
+    /// Gets the dot product between 2 vectors
+    static float Dot(const Vector2& v1, const Vector2& v2) {
+      return v1.X() * v2.X() + v1.Y() * v2.Y();
+    }
+
+    /// Gets the angle between two Angles
     static float Angle(const Vector2& v1, const Vector2& v2) {
-      float dz = v1.x * v2.y - v1.y * v2.x;
-      return atan2f(fabsf(dz) + 1.0e-37f, dot(v1, v2)); //float small
+      float dz = v1.X() * v2.Y() - v1.Y() * v2.X();
+      return atan2f(fabsf(dz) + 1.0e-37f, Dot(v1, v2)); //float small
     }
 
-    Vector2 getNormalized() {
+    /// Gets the angle between 2 vectors in degrees
+    static float DegAngle(const Vector2& v1, const Vector2& v2) {
+      return Angle(v1, v2) * (180.0f / (float)M_PI);
+    }
+
+    Vector2 GetNormalized() const {
       Vector2 v(*this);
       v.Normalize();
       return v;
     }
 
-  private:
-    float x_, y_;
-
-    void set(float x, float y) {
+    void Set(float x, float y) {
       x_ = x;
       y_ = y;
     }
 
-    void set(const Vector2& v) {
+    void Set(const Vector2& v) {
       x_ = v.x_;
       y_ = v.y_;
     }
 
-    void set(const Vector2& p1, const Vector2& p2) {
-      x_ = p2.x_ - p1.x_;
-      y_ = p2.y_ - p1.y_;
+    void Add(const Vector2& vec) {
+      x_ += vec.X();
+      y_ += vec.Y();
     }
+
+    void Subtract(const Vector2& vec) {
+      x_ -= vec.X();
+      y_ -= vec.Y();
+    }
+
+    void Multiply(const Vector2& vec) {
+      x_ *= vec.X();
+      y_ *= vec.Y();
+    }
+
+    void Divide(const Vector2& vec) {
+      x_ /= vec.X();
+      y_ /= vec.Y();
+    }
+
+    void Negate() {
+      x_ = -x_;
+      y_ = -y_;
+    }
+
+    /// Operators
+    Vector2 operator+(const Vector2& v) {
+      Vector2 result(*this);
+      result.Add(v);
+      return result;
+    }
+
+    Vector2& operator+=(const Vector2& v) {
+      Add(v);
+      return *this;
+    }
+
+    Vector2 operator-(const Vector2& v) const {
+      Vector2 result(*this);
+      result.Subtract(v);
+      return result;
+    }
+
+    Vector2 operator-() const {
+      Vector2 result(*this);
+      result.Negate();
+      return result;
+    }
+
+    Vector2& operator-=(const Vector2& v) {
+      Subtract(v);
+      return *this;
+    }
+
+    Vector2 operator*(const float s) const {
+      return Vector2(this->X() * s, this->Y() * s);
+    }
+
+    Vector2 operator*(const Vector2& v) const {
+      Vector2 result(*this);
+      result.Multiply(v);
+      return result;
+    }
+
+    Vector2& operator*=(const Vector2& v) {
+      Multiply(v);
+      return *this;
+    }
+
+    Vector2 operator/(const float s) const {
+      return Vector2(this->X() / s, this->Y() / s);
+    }
+
+    Vector2 operator/(const Vector2& v) const {
+      Vector2 result(*this);
+      result.Divide(v);
+      return result;
+    }
+
+    Vector2& operator/=(const Vector2& v) {
+      Divide(v);
+      return *this;
+    }
+
+    bool operator<(const Vector2& v) const {
+      if(this->X() == v.X()){
+        return this->Y() < v.Y();
+      }
+      return this->X() > v.X();
+    }
+
+    bool operator>(const Vector2& v) const {
+      return !(*this < v);
+    }
+
+    const bool operator ==(const Vector2& v) const {
+      if(this->X() == v.X() && this->Y() == v.Y()) {
+        return true;
+      }
+      return false;
+    }
+
+    const bool operator !=(Vector2& v) const {
+      return !(*this == v);
+    }
+
+  private:
+    float x_, y_;
   };
 
   /// Fly to the center of mass of other boids
-  Vector2 Rule1(Boid& boid) {
-    Vector2 pcj = Vector2::Zero();
+  Vector2 Rule1(const Boid& boid) {
+    Vector2 pcj;
     int neighborCount = 0;
-		for(int i=0; i<BOIDS_COUNT; ++i){
-			if (boid != b && (b.position_-boid.position_).Length() < 700) {
-				pcj += b.position_;
+		for(int i=0; i<BOIDS_COUNT; ++i) {
+      const Boid b = boids_[i];
+			if (b != boid
+          && (b.position-boid.position).Length() < 700) {
+				pcj += b.position;
 				++neighborCount;
 			}
 		}
 		pcj /= neighborCount + 1; //(Boids.Count - 1);
-		return (pcj - boid.position_) * 0.01f;
+		return (pcj - boid.position) * 0.01f;
   }
 
-  //Keep a small distance away from other objects
-  Vector2 Rule2(Boid& boid) {
-    Vector2 pvj = Vector2::Zero();
+  /// Keep a small distance away from other objects
+  Vector2 Rule2(const Boid& boid) {
+    Vector2 pvj;
     int neighborCount = 0;
 		for(int i=0; i<BOIDS_COUNT; ++i){
+      const Boid b = boids_[i];
 			if (b != boid) {
-				var distance = (boid.position_ - b.position_).Length();
+				float distance = (boid.position - b.position).Length();
 				if (0 < distance && distance < DESIRED_SEPARATION) {
-					var deltaVector = boid.position_ - b.position_;
+					Vector2 deltaVector = boid.position - b.position;
 					deltaVector.Normalize();
 					deltaVector /= distance;
-					vec += deltaVector;
+					pvj += deltaVector;
 					neighborCount++;
 				}
 			}
 		}
-		Vector2 averageSteeringVector = (neighborCount > 0) ? vec / neighborCount : Vector2.Zero;
+		Vector2 averageSteeringVector = (neighborCount > 0)
+      ? pvj / neighborCount : Vector2::Zero();
 		return averageSteeringVector;
   }
 
-  //Maintain an average speed equal to that of the other boids
-  Vector2 Rule3(Boid& boid) {
-    Vector2 pvj = Vector2::Zero();
-    for(int i=0; i<BOIDS_COUNT; ++i){
+  /// Maintain an average speed equal to that of the other boids
+  Vector2 Rule3(const Boid& boid) {
+    Vector2 pvj;// = Vector2::Zero();
+    for(int i=0; i<BOIDS_COUNT; ++i) {
+      const Boid b = boids_[i];
       if (boid != b) {
-				pvj += b.Velocity();
+				pvj += b.velocity;
 			}
 		}
-		pvj /= (BOUDS_COUNT - 1);
-		return (pvj - boid.Velocity()) / 8;
+		pvj /= (BOIDS_COUNT - 1);
+		return (pvj - boid.velocity) / 8.0f;
   }
 
+  /// TODO: move these to a color class in /include
+  /// since these exist in GeneticColors above
   static int R(const int cit) { return at(cit, 16); }
   static int G(const int cit) { return at(cit, 8); }
   static int B(const int cit) { return at(cit, 0); }
-  static int at(const int v, const  int offset) { return (v >> offset) & 0xFF; }
+  static int at(const int v, const int offset) { return (v >> offset) & 0xFF; }
 
   int BOIDS_COUNT;
   int color_;
@@ -1257,6 +1377,7 @@ private:
   int width_, height_;
   int delay_ms_;
   int m1_, m2_, m3_; //scaling factors for vectors
+  int DESIRED_SEPARATION = 2;
   Boid* boids_;
 };
 
@@ -1290,7 +1411,8 @@ static int usage(const char *progname) {
           "\t7  - Conway's game of life (-m <time-step-ms>)\n"
           "\t8  - Langton's ant (-m <time-step-ms>)\n"
           "\t9  - Volume bars (-m <time-step-ms>)\n"
-          "\t10 - Evolution of color (-m <time-step-ms>)\n");
+          "\t10 - Evolution of color (-m <time-step-ms>)\n"
+          "\t11 - Boids (-m <time-step-ms)\n");
   fprintf(stderr, "Example:\n\t%s -t 10 -D 1 runtext.ppm\n"
           "Scrolls the runtext for 10 seconds\n", progname);
   return 1;
@@ -1475,6 +1597,9 @@ int main(int argc, char *argv[]) {
 
   case 10:
     image_gen = new GeneticColors(canvas, scroll_ms);
+    break;
+  case 11:
+    image_gen = new Boids(canvas, scroll_ms);
     break;
   }
 
