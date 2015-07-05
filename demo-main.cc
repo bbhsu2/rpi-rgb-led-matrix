@@ -1026,21 +1026,18 @@ public:
     //initialize each boid in boids_
     for(int i=0; i<BOIDS_COUNT; ++i) {
       float angle = (float)rand () / (float)(RAND_MAX);
-      boids_[i].position.x_ = rand() % (width_ / 2);
-      boids_[i].position.y_ = rand() % (height_ / 2);
-      boids_[i].velocity.x_ = cos(angle);
-      boids_[i].velocity.y_ = sin(angle);
+      boids_[i].position.Set(rand() % (width_ / 2), rand() % (height_ / 2));
+      boids_[i].velocity.Set(cos(angle), sin(angle));
     }
 
     while (running()) {
       //iterate through the boids and update acceleration
       for(int i=0; i<BOIDS_COUNT; ++i){
-        Boid* b = &boids_[i];
-        Vector2 v1 = /*m1 */ Rule1(b);
-        Vector2 v2 = /*m2 */ Rule2(b) * DESIRED_SEPARATION;
-        Vector2 v3 = /*m3 */ Rule3(b);
-        b->acceleration = v1 + v2 + v3;
-        b->Update();
+        Vector2 v1 = /*m1 */ Rule1(boids_[i]);
+        Vector2 v2 = /*m2 */ Rule2(boids_[i]) * DESIRED_SEPARATION;
+        Vector2 v3 = /*m3 */ Rule3(boids_[i]);
+        boids_[i].acceleration = v1 + v2 + v3;
+        boids_[i].Update();
       }
       //iterate through the boids again and draw them
       for(int i=0; i<BOIDS_COUNT; ++i){
