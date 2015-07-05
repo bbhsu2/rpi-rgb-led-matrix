@@ -1013,6 +1013,9 @@ public:
     //seed random and set color
     srand(time(NULL));
     color_ = rand() & 0xFFFFFF;
+    DESIRED_SEPARATION = 2;
+    BORDER_OFFSET = 3;
+    MAX_SPEED = 2;
   }
 
   ~Boids() {
@@ -1033,9 +1036,9 @@ public:
       //iterate through the boids and update acceleration
       for(int i=0; i<BOIDS_COUNT; ++i){
         Boid* b = &boids_[i];
-        Vector2 v1 = m1 * Rule1(b);
-        Vector2 v2 = m2 * Rule2(b) * DESIRED_SEPARATION;
-        Vector2 v3 = m3 * Rule3(b);
+        Vector2 v1 = /*m1 */ Rule1(b);
+        Vector2 v2 = /*m2 */ Rule2(b) * DESIRED_SEPARATION;
+        Vector2 v3 = /*m3 */ Rule3(b);
         b->acceleration = v1 + v2 + v3;
         b->Update();
       }
@@ -1050,57 +1053,6 @@ public:
   }
 
 private:
-  /// The Boid that flies around the screen.
-  class Boid {
-  public:
-    Boid () { }
-
-    Boid(Vector2 pos, Vector2 vel, Vector2 accel = Vector2::Zero())
-      : position(pos), velocity(vel), acceleration(accel) {
-    }
-
-    void Update(){
-      velocity += acceleration;
-      velocity.Normalize();
-      velocity *= MAX_SPEED;
-      position += velocity;
-      CheckBounds();
-      acceleration = Vector2::Zero();
-    }
-
-    void CheckBounds() {
-      if (position.X() > width_ + BORDER_OFFSET) {
-        position.X() = -BORDER_OFFSET;
-      }
-      if (position < -BORDER_OFFSET) {
-        position.X() = width_ + BORDER_OFFSET;
-      }
-      if (position.Y() > height_ + BORDER_OFFSET) {
-        position.Y() = -BORDER_OFFSET;
-      }
-      if (position.Y() < -BORDER_OFFSET) {
-        position.Y() = height_ + BORDER_OFFSET;
-      }
-    }
-
-    const bool operator ==(const Boid& b) const {
-      if(this->position == b.position &&
-         this->velocity == b.velocity &&
-         this->acceleration == b.acceleration) {
-           return true;
-      }
-      return false;
-    }
-
-    const bool operator !=(const Boid& b) const {
-      return !(*this == b);
-    }
-
-    Vector2 position;
-    Vector2 velocity;
-    Vector2 acceleration;
-  };
-
   /// A class to store the Velocity and Accel of each Boid
   class Vector2 {
   public:
@@ -1313,6 +1265,57 @@ private:
     float x_, y_;
   };
 
+  /// The Boid that flies around the screen.
+  class Boid {
+  public:
+    Boid () { }
+
+    Boid(Vector2 pos, Vector2 vel, Vector2 accel = Vector2::Zero())
+      : position(pos), velocity(vel), acceleration(accel) {
+    }
+
+    void Update(){
+      velocity += acceleration;
+      velocity.Normalize();
+      velocity *= MAX_SPEED;
+      position += velocity;
+      CheckBounds();
+      acceleration = Vector2::Zero();
+    }
+
+    void CheckBounds() {
+      if (position.X() > width_ + BORDER_OFFSET) {
+        position.X() = -BORDER_OFFSET;
+      }
+      if (position < -BORDER_OFFSET) {
+        position.X() = width_ + BORDER_OFFSET;
+      }
+      if (position.Y() > height_ + BORDER_OFFSET) {
+        position.Y() = -BORDER_OFFSET;
+      }
+      if (position.Y() < -BORDER_OFFSET) {
+        position.Y() = height_ + BORDER_OFFSET;
+      }
+    }
+
+    const bool operator ==(const Boid& b) const {
+      if(this->position == b.position &&
+         this->velocity == b.velocity &&
+         this->acceleration == b.acceleration) {
+           return true;
+      }
+      return false;
+    }
+
+    const bool operator !=(const Boid& b) const {
+      return !(*this == b);
+    }
+
+    Vector2 position;
+    Vector2 velocity;
+    Vector2 acceleration;
+  };
+
   /// Fly to the center of mass of other boids
   Vector2 Rule1(const Boid& boid) {
     Vector2 pcj;
@@ -1372,12 +1375,14 @@ private:
   static int at(const int v, const int offset) { return (v >> offset) & 0xFF; }
 
   int BOIDS_COUNT;
+  int DESIRED_SEPARATION;
+  int BORDER_OFFSET;
+  int MAX_SPEED;
   int color_;
   int popSize_;
   int width_, height_;
   int delay_ms_;
   int m1_, m2_, m3_; //scaling factors for vectors
-  int DESIRED_SEPARATION = 2;
   Boid* boids_;
 };
 
